@@ -145,18 +145,53 @@ public class Api {
             it.typeName = j.optString("type_name", "");
             it.year = j.optString("vod_year", "");
             it.area = j.optString("vod_area", "");
-            parsePlayUrl(it, j.optString("vod_play_url", ""));
+            parsePlayUrl(it, j.optString("vod_play_url", ""), j.optString("vod_play_from", ""));
             if (it.name.length() > 0) p.items.add(it);
         }
         return p;
     }
 
-    /** vod_play_url 形如：第01集$url#第02集$url 或 线路1$...#...$$$线路2$... */
-    private static void parsePlayUrl(Item it, String raw) {
+    /**
+     * 解析播放线路。
+     *
+     * 非凡资源返回多路：vod_play_from = "feifan$$$ffm3u8"，
+     * vod_play_url 用 "$$$" 分隔，顺序与 vod_play_from 一一对应。
+     * 实测只有 ffm3u8 那一路是可直接播放的 .m3u8 直链，
+     * 其余（feifan 等）是分享页/无效地址，因此优先取 ffm3u8。
+     */
+    private static void parsePlayUrl(Item it, String raw, String from) {
         if (raw == null || raw.length() == 0) return;
-        String line = raw;
-        int sep = raw.indexOf("$$$");
-        if (sep > 0) line = raw.substring(0, sep);
+
+        String[] lines = raw.split("\\$\\$\\$", -1);
+        int pick = -1;
+
+        // 1) 用 vod_play_from 对齐，找 ffm3u8
+        if (from != null && from.length() > 0) {
+            String[] names = from.split("\\$\\$\\$", -1);
+            for (int i = 0; i < names.length; i++) {
+                if (names[i] != null && names[i].toLowerCase().contains("ffm3u8")) {
+                    pick = i;
+                    break;
+                }
+            }
+        }
+        // 2) 没有 from 信息时，按内容找含 .m3u8 的那一路
+        if (pick < 0 || pick >= lines.length) {
+            pick = -1;
+            for (int i = 0; i < lines.length; i++) {
+                String l = lines[i];
+                if (l != null && l.toLowerCase().contains(".m3u8")) {
+                    pick = i;
+                    break;
+                }
+            }
+        }
+        // 3) 兜底：第一路
+        if (pick < 0 || pick >= lines.length) pick = 0;
+
+        String line = lines[pick];
+        if (line == null || line.length() == 0) return;
+
         String[] parts = line.split("#");
         for (String s : parts) {
             if (s == null) continue;

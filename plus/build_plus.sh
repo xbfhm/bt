@@ -94,7 +94,18 @@ SRC = os.path.join(WORK, 'bt_tv_unsigned.apk')
 OUT = os.path.join(WORK, 'bt_plus_unsigned.apk')
 MAN = os.path.join(WORK, 'AndroidManifest.xml')
 D3 = os.path.join(WORK, 'classes3.dex')
-man = open(MAN, 'rb').read()
+man = bytearray(open(MAN, 'rb').read())
+# versionName 0.9.40 -> VNAME（AXML 字符串池是 UTF-16LE，等长替换）
+for cand in ('0.9.40', '0.9.41', '0.9.42'):
+    o = cand.encode('utf-16-le')
+    if o in man and cand != VNAME:
+        n = VNAME.encode('utf-16-le')
+        if len(n) == len(o):
+            i = man.find(o)
+            man[i:i + len(o)] = n
+            print('versionName %s -> %s @ %d' % (cand, VNAME, i))
+        break
+man = bytes(man)
 d3 = open(D3, 'rb').read()
 zin = zipfile.ZipFile(SRC); zout = zipfile.ZipFile(OUT, 'w')
 for zi in zin.infolist():
