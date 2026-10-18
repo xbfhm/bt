@@ -87,9 +87,10 @@ echo "==> 7/8 重建 manifest 并组装"
 python3 "$HERE/tools/patch_plus_manifest.py" "$WORK/x/AndroidManifest.xml" "$WORK/AndroidManifest.xml"
 python3 tools/repack.py "$WORK" "$SRC" "$VNAME"
 # repack.py 只换 out1/out2，这里追加 classes3.dex
-python3 - "$WORK" <<'PY'
+python3 - "$WORK" "$VNAME" <<'PY'
 import sys, os, zipfile
 WORK = sys.argv[1]
+VNAME = sys.argv[2]
 SRC = os.path.join(WORK, 'bt_tv_unsigned.apk')
 OUT = os.path.join(WORK, 'bt_plus_unsigned.apk')
 MAN = os.path.join(WORK, 'AndroidManifest.xml')
