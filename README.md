@@ -139,7 +139,7 @@ return-void          # API < 23 直接返回：老系统装的时候权限已经
 
 - 版本：`0.9.41`（原 0.9.40）
 - 大小：3.42 MB
-- SHA-256：`0527e531b50256f0ec2eb140b2aeb52b97f7ca8f2bb80b661ce689fce94e9d93`
+- SHA-256：`fd788ab174b826400c6d4a3b23286c332b5a06cd42882d8a4c21d19fe1618098`
 
 ---
 
@@ -216,8 +216,10 @@ bt/
 ├── src/base.apk              # 原版 0.9.40（未修改）
 ├── tools/
 │   ├── build.sh              # 一键构建
-│   ├── patch_api22.py        # API 22 兼容补丁
-│   └── repack.py             # 重打包
+│   ├── patch_axml.py         # AXML minSdkVersion 修改器
+│   ├── patch_api22.py        # API 22 兼容补丁（smali 层）
+│   ├── repack.py             # 重打包
+│   └── verify.py             # 构建后自检（9 项，失败即中断）
 ├── keystore/bt-release.jks   # 固定签名（口令 bt2026）
 ├── .github/workflows/build.yml
 ├── CHANGELOG.md
