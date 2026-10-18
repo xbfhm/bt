@@ -39,15 +39,21 @@ jobs:
       - name: Build base APK (API 22 only)
         run: |
           chmod +x tools/build.sh
-          ./tools/build.sh 2>&1 | tee build.log || { echo '=== base build failed ==='; tail -c 80000 build.log; exit 1; }
+          set -o pipefail
+          ./tools/build.sh 2>&1 | tee build.log
 
       - name: Build Plus APK (new features)
         run: |
           chmod +x plus/build_plus.sh
+          set -o pipefail
           ANDROID_JAR="$PWD/build-plus/android.jar" ./plus/build_plus.sh 2>&1 | tee -a build.log
 
       - name: Show artifacts
-        run: ls -l dist/
+        run: |
+          ls -l dist/
+          test -f "dist/BT_TV_0.9.41_API22.apk" || { echo "❌ 缺少基础版"; exit 1; }
+          test -f "dist/BT_Plus_0.9.41_API22.apk" || { echo "❌ 缺少 Plus 版"; exit 1; }
+          echo "✅ 两个包都已生成"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -70,7 +76,7 @@ jobs:
 
             详见 [README](https://github.com/xbfhm/bt#readme)
           files: dist/*.apk
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
 
       - name: Dump log on failure
         if: failure()

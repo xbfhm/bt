@@ -66,14 +66,18 @@ fi
 
 # ---------- 3) 新功能 dex ----------
 echo "==> 6/8 编译新功能（classes3.dex）"
-rm -rf "$WORK/classes"; mkdir -p "$WORK/classes"
+rm -rf "$WORK/classes" "$WORK/d8"; mkdir -p "$WORK/classes" "$WORK/d8"
 javac -nowarn -source 8 -target 8 -encoding UTF-8 \
   -bootclasspath "$AJAR" -classpath "$AJAR" \
   -d "$WORK/classes" "$HERE"/src/com/yzb/btplus/*.java
 rm -f "$WORK/classes3.dex"
+# D8 单 dex 时输出固定叫 classes.dex，先落到独立目录再改名，避免与解包内容混淆
 java -cp "$R8" com.android.tools.r8.D8 --min-api 21 --release \
-  --lib "$AJAR" --output "$WORK" $(find "$WORK/classes" -name '*.class')
-[ -s "$WORK/classes3.dex" ] || { echo "classes3.dex 未生成"; exit 1; }
+  --lib "$AJAR" --output "$WORK/d8" $(find "$WORK/classes" -name '*.class')
+[ -s "$WORK/d8/classes.dex" ] || { echo "❌ D8 未生成 classes.dex"; exit 1; }
+mv -f "$WORK/d8/classes.dex" "$WORK/classes3.dex"
+[ -s "$WORK/classes3.dex" ] || { echo "❌ classes3.dex 未生成"; exit 1; }
+echo "classes3.dex = $(stat -c%s "$WORK/classes3.dex") 字节"
 
 # ---------- 4) manifest + 组装 ----------
 echo "==> 7/8 重建 manifest 并组装"
