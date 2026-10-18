@@ -14,6 +14,8 @@
 | 直链（推荐） | https://xbfhm.xyz/downloads/BT_Plus_0.9.41_API22.apk |
 | GitHub Release | https://github.com/xbfhm/bt/releases/download/latest/BT_Plus_0.9.41_API22.apk |
 
+> GitHub Release 里的 APK 由 GitHub Actions 自动重新构建（源码与补丁完全相同，但 D8 编译器版本、签名时间戳不同，所以字节内容和 SHA-256 与网站直链版本不一致）。两者功能一致，**优先用网站直链**，下表的校验值也对应网站直链版本。
+
 | 项 | 值 |
 |---|---|
 | 版本 | `0.9.41`（versionCode 59） |
