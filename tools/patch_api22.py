@@ -29,6 +29,54 @@ def backup(p):
         shutil.copy2(p, b)
 
 
+
+# 注意：本段必须在「新增 D()/E()」之前执行，否则 E() 内部的
+# Context.checkSelfPermission 会被一起替换成 a0.D，造成 D->E->D 无限递归。
+
+# ---------------- 2) checkSelfPermission -> a0.D ----------------
+pat = re.compile(
+    r'invoke-virtual \{([vp]\d+), ([vp]\d+)\}, '
+    r'Landroid/content/Context;->checkSelfPermission\(Ljava/lang/String;\)I'
+)
+for dirpath, _, files in os.walk(SM1):
+    for fn in files:
+        if not fn.endswith('.smali'):
+            continue
+        p = os.path.join(dirpath, fn)
+        s = open(p, encoding='utf-8').read()
+        n = len(pat.findall(s))
+        if n:
+            s2 = pat.sub(
+                lambda m: 'invoke-static {%s, %s}, '
+                          'La/a0;->D(Landroid/content/Context;Ljava/lang/String;)I'
+                          % (m.group(1), m.group(2)), s)
+            backup(p)
+            open(p, 'w', encoding='utf-8').write(s2)
+            report.append('%s: %d 处 checkSelfPermission -> a0.D' % (p, n))
+
+# ---------------- 3) getSystemService(Class) -> (String) ----------------
+gs_pat = re.compile(
+    r'invoke-virtual \{([vp]\d+), ([vp]\d+)\}, '
+    r'Landroid/content/Context;->getSystemService\(Ljava/lang/Class;\)Ljava/lang/Object;'
+)
+CC_PAT = re.compile(r'const-class (v\d+), Landroid/app/NotificationManager;')
+for dirpath, _, files in os.walk(SM1):
+    for fn in files:
+        if not fn.endswith('.smali'):
+            continue
+        p = os.path.join(dirpath, fn)
+        s = open(p, encoding='utf-8').read()
+        if not gs_pat.search(s):
+            continue
+        s2, n1 = CC_PAT.subn(r'const-string \1, "notification"', s)
+        s2, n2 = gs_pat.subn(
+            r'invoke-virtual {\1, \2}, '
+            r'Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;', s2)
+        backup(p)
+        open(p, 'w', encoding='utf-8').write(s2)
+        report.append('%s: const-class->const-string x%d, getSystemService x%d'
+                      % (p, n1, n2))
+
 # ---------------- 1) a0 增加 D() / E() ----------------
 A0 = os.path.join(SM1, 'a/a0.smali')
 src = open(A0, encoding='utf-8').read()
@@ -83,50 +131,6 @@ if '->D(Landroid/content/Context;Ljava/lang/String;)I' not in src:
     report.append('a0: 新增 D()/E() 兼容方法')
 else:
     report.append('a0: D() 已存在，跳过')
-
-# ---------------- 2) checkSelfPermission -> a0.D ----------------
-pat = re.compile(
-    r'invoke-virtual \{([vp]\d+), ([vp]\d+)\}, '
-    r'Landroid/content/Context;->checkSelfPermission\(Ljava/lang/String;\)I'
-)
-for dirpath, _, files in os.walk(SM1):
-    for fn in files:
-        if not fn.endswith('.smali'):
-            continue
-        p = os.path.join(dirpath, fn)
-        s = open(p, encoding='utf-8').read()
-        n = len(pat.findall(s))
-        if n:
-            s2 = pat.sub(
-                lambda m: 'invoke-static {%s, %s}, '
-                          'La/a0;->D(Landroid/content/Context;Ljava/lang/String;)I'
-                          % (m.group(1), m.group(2)), s)
-            backup(p)
-            open(p, 'w', encoding='utf-8').write(s2)
-            report.append('%s: %d 处 checkSelfPermission -> a0.D' % (p, n))
-
-# ---------------- 3) getSystemService(Class) -> (String) ----------------
-gs_pat = re.compile(
-    r'invoke-virtual \{([vp]\d+), ([vp]\d+)\}, '
-    r'Landroid/content/Context;->getSystemService\(Ljava/lang/Class;\)Ljava/lang/Object;'
-)
-CC_PAT = re.compile(r'const-class (v\d+), Landroid/app/NotificationManager;')
-for dirpath, _, files in os.walk(SM1):
-    for fn in files:
-        if not fn.endswith('.smali'):
-            continue
-        p = os.path.join(dirpath, fn)
-        s = open(p, encoding='utf-8').read()
-        if not gs_pat.search(s):
-            continue
-        s2, n1 = CC_PAT.subn(r'const-string \1, "notification"', s)
-        s2, n2 = gs_pat.subn(
-            r'invoke-virtual {\1, \2}, '
-            r'Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;', s2)
-        backup(p)
-        open(p, 'w', encoding='utf-8').write(s2)
-        report.append('%s: const-class->const-string x%d, getSystemService x%d'
-                      % (p, n1, n2))
 
 # ---------------- 4) requestPermissions 加 SDK 守卫 ----------------
 REQ_PAT = re.compile(

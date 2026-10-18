@@ -48,6 +48,7 @@ if [ -f "$WORK/x/classes2.dex" ]; then
 fi
 
 echo "==> 4/7 打 API 22 兼容补丁"
+python3 tools/patch_axml.py "$WORK/x/AndroidManifest.xml" 21
 python3 tools/patch_api22.py "$WORK/x"
 
 echo "==> 5/7 重新编译 dex"
@@ -66,6 +67,10 @@ cp "$WORK/bt_tv_unsigned.apk" "$OUT"
 jarsigner -keystore "$KS" -storepass "$KSPASS" -keypass "$KSPASS" \
   -digestalg SHA-256 -sigalg SHA256withRSA \
   -signedjar "$OUT" "$OUT" bt
+
+echo
+echo "==> 自检"
+python3 tools/verify.py "$OUT" "$WORK"
 
 echo
 echo "✅ 产物: $OUT"
