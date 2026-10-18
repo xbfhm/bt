@@ -1,5 +1,9 @@
+# 构建产物
 build/
+build-plus/
 dist/
-*.log
+*.apk
+!src/base.apk
 __pycache__/
 *.pyc
+build.log

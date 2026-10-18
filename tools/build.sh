@@ -10,8 +10,11 @@ SRC="$ROOT/src/base.apk"
 KS="$ROOT/keystore/bt-release.jks"
 KSPASS="${KSPASS:-bt2026}"
 VNAME="${VNAME:-0.9.41}"
+UBER="${UBER_JAR:-$WORK/uber-apk-signer.jar}"
 
 mkdir -p "$WORK"
+[ -s "$UBER" ] || curl -fsSL -o "$UBER" \
+  https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar
 echo "==> 1/7 准备 baksmali / smali"
 MVN=https://repo1.maven.org/maven2
 fetch() { # $1=path
@@ -60,13 +63,14 @@ fi
 echo "==> 6/7 重打包"
 python3 tools/repack.py "$WORK" "$SRC" "$VNAME"
 
-echo "==> 7/7 签名 (V1 / jarsigner)"
-OUT="$ROOT/dist/BT_TV_${VNAME}_API22.apk"
+echo "==> 7/7 zipalign + V1/V2/V3 签名"
 mkdir -p "$ROOT/dist"
-cp "$WORK/bt_tv_unsigned.apk" "$OUT"
-jarsigner -keystore "$KS" -storepass "$KSPASS" -keypass "$KSPASS" \
-  -digestalg SHA-256 -sigalg SHA256withRSA \
-  -signedjar "$OUT" "$OUT" bt
+java -jar "$UBER" -a "$WORK/bt_tv_unsigned.apk" \
+  --ks "$KS" --ksAlias bt --ksKeyPass "$KSPASS" --ksPass "$KSPASS" \
+  --out "$ROOT/dist" >/dev/null
+SIGNED=$(ls "$ROOT/dist"/*aligned-signed.apk | head -1)
+OUT="$ROOT/dist/BT_TV_${VNAME}_API22.apk"
+mv -f "$SIGNED" "$OUT"
 
 echo
 echo "==> 自检"

@@ -1,226 +1,176 @@
-# BT · Android TV 适配版
+# BT · Android TV 增强版
 
-> 把原本只能装在 **Android 6.0+** 的 BT 客户端，改造成能在 **Android 5.1.1（API 22）** 老电视上正常安装运行的版本。
+基于官方 `com.chinasoul.bt` **v0.9.40** 逆向修改的 TV 版本，做了两件事：
 
-[![Build](https://github.com/xbfhm/bt/actions/workflows/build.yml/badge.svg)](https://github.com/xbfhm/bt/actions/workflows/build.yml)
+1. **兼容 Android 5.1.1（API 22）** —— 原版要求 Android 6.0，老电视装不上
+2. **新增两个功能** —— 免费影视库、刷视频
 
 ---
 
-## 📺 适配目标
+## 📥 下载
 
-| 项目 | 说明 |
+| 渠道 | 地址 |
 |---|---|
-| 测试设备 | 海信 VIDAA V1 智能电视 |
-| 系统 | Android 5.1.1（API 22） |
-| SoC | MStar MSD6A828（arm64-v8a，系统镜像 32 位） |
-| 内存 | 2 GB |
-| GPU | Mali-450 |
+| 直链（推荐） | https://xbfhm.xyz/downloads/BT_Plus_0.9.41_API22.apk |
+| GitHub Release | https://github.com/xbfhm/bt/releases/download/latest/BT_Plus_0.9.41_API22.apk |
 
----
-
-## ❓ 为什么原版装不上
-
-原版 `com.chinasoul.bt` v0.9.40 的 `AndroidManifest.xml`：
-
-```xml
-<uses-sdk android:minSdkVersion="23" android:targetSdkVersion="35" />
-```
-
-**`minSdkVersion=23` 意味着 Android 6.0 起步。** 你的电视是 API 22，安装器会直接拒绝：
-
-```
-App not installed. This app isn't compatible with your device.
-```
-
-而且光把 `minSdk` 改成 21 也不够 —— 代码里还有一批 **API 23 才存在的方法**，在老系统上调用会抛 `NoSuchMethodError` 直接崩溃。
-
----
-
-## 🔧 做了哪些改动
-
-### 1. `minSdkVersion` 23 → 21
-
-在 AXML 二进制里直接把 `uses-sdk/minSdkVersion` 的整数从 `0x17` 改成 `0x15`，其它资源一字节没动。
-
-### 2. `Context.checkSelfPermission` → 兼容封装
-
-这是最危险的一处。原版有 **3 个调用点**，全部**没有 SDK_INT 保护**：
-
-| 文件 | 用途 |
+| 项 | 值 |
 |---|---|
-| `a/GI.smali` | 读取相册（`ACCESS_MEDIA_LOCATION`） |
-| `a/MK.smali` ×2 | `WakeLockManager` 后台保活锁（`WAKE_LOCK`） |
+| 版本 | `0.9.41`（versionCode 59） |
+| 大小 | 3,600,139 字节（3.43 MB） |
+| SHA-256 | `ddcaab3a51d76e299d29663b11523560d465bfbe262869976891ce0e59103c6d` |
+| MD5 | `1d6ba87d056c8ba54a2cbae801a9aa1d` |
+| minSdk | 21（Android 5.0） |
+| targetSdk | 35 |
+| 签名 | V1 + V2 + V3 |
 
-`WakeLockManager` 是 **后台下载 / 后台播放** 的必经之路 —— 不改的话，一进播放就崩。
+> ⚠️ **签名与官方版不同，必须先卸载原版 BT 再安装**。卸载会清掉本地数据（观看记录、下载列表），装之前先截图记一下。
 
-处理方式：在已有的 synthetic 辅助类 `La/a0;` 里新增两个方法：
+---
 
-```smali
-# D() —— 统一入口，按 SDK 版本分流
-.method public static synthetic D(Landroid/content/Context;Ljava/lang/String;)I
-    sget v0, Landroid/os/Build$VERSION;->SDK_INT:I
-    const/16 v1, 0x17
-    if-lt v0, v1, :cond_old
-    # API >= 23：走原生 checkSelfPermission
-    invoke-static {p0, p1}, La/a0;->E(Landroid/content/Context;Ljava/lang/String;)I
-    move-result v0
-    return v0
-    :cond_old
-    # API < 23：降级到 checkPermission(perm, pid, uid)
-    invoke-static {}, Landroid/os/Process;->myPid()I
-    move-result v0
-    invoke-static {}, Landroid/os/Process;->myUid()I
-    move-result v1
-    invoke-virtual {p0, p1, v0, v1}, Landroid/content/Context;->checkPermission(Ljava/lang/String;II)I
-    move-result v0
-    return v0
-.end method
-```
+## ✨ 新增功能
 
-然后 3 个调用点全部改成 `invoke-static {ctx, perm}, La/a0;->D(...)`。
+装好后在**电视桌面（应用列表）里会多出两个独立入口**，不影响原 App 的任何功能。
 
-> ✅ **语义没有降级**：老系统上依然做真实的权限检查（`checkPermission` 从 API 1 就有），不是硬编码返回"已授权"。
+### 1. 免费影视库 —— 播放 B 站没有的番剧 / 会员番剧
 
-### 3. `Context.getSystemService(Class)` → `getSystemService(String)`
+用的是你网站同款的 **非凡资源** 接口（`api.ffzyapi.com`），全部免费直连 m3u8：
 
-`getSystemService(Class<T>)` 是 **API 23** 新增的。`BackgroundAudioService` 里有 **3 处** 用它拿 `NotificationManager`：
+- 5 万多部影视，每天更新
+- 分类：日韩动漫 / 国产动漫 / 国产剧 / 美剧 / 日剧 / 韩剧 / 港台剧 / 泰剧 / 欧美剧 / 综艺
+- 支持搜索
+- 选集后直接播放，走 ExoPlayer 硬解
 
-```smali
-const-class v2, Landroid/app/NotificationManager;
-invoke-virtual {p0, v2}, Landroid/content/Context;->getSystemService(Ljava/lang/Class;)Ljava/lang/Object;
-```
+对于 B 站需要大会员才能看的番剧，只要这边有这个资源，就能直接免费看。
 
-改为等价的字符串版（API 1 就有）：
+### 2. 刷视频 —— 像抖音一样的竖屏推荐流
 
-```smali
-const-string v2, "notification"
-invoke-virtual {p0, v2}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
-```
+- 全屏播放，上下键切视频
+- 数据来自 B 站官方推荐接口（`/x/web-interface/wbi/index/top/feed/rcmd`）
+- 自动取 720P 直链播放
+- 遥控器：`上/下` 切换视频，`OK` 暂停/继续，`返回` 退出
 
-返回值类型不变，后续 `check-cast` 不需要动。
+---
 
-### 4. `Activity.requestPermissions` 加 SDK 守卫
+## 📺 遥控器按键
 
-`requestPermissions` 是 API 23 新增的，在 `La/po;` 的 `y(Activity, String[], int)` 里被调用，**原本没有任何版本判断**。
+### 免费影视库 / 搜索页
 
-在方法开头插入短路：
+| 按键 | 作用 |
+|---|---|
+| 方向键 | 移动焦点 |
+| OK | 进入 / 播放 |
+| 返回 | 返回上一级 |
 
-```smali
-sget v0, Landroid/os/Build$VERSION;->SDK_INT:I
-const/16 v1, 0x17
-if-lt v0, v1, :cond_sdk23ok
-return-void          # API < 23 直接返回：老系统装的时候权限已经全部授予
-:cond_sdk23ok
-```
+### 详情页（选集）
 
-> 这不是"跳过功能" —— Android 5.1 是**安装即授权**模型，不存在运行时权限弹窗，这个调用本来就无意义。
+| 按键 | 作用 |
+|---|---|
+| 方向键 | 在剧集网格中移动 |
+| OK | 播放该集 |
 
-### 5. 其它已核查、**无需改动**的点
+### 播放页
 
-| API | 位置 | 结论 |
+| 按键 | 作用 |
+|---|---|
+| OK | 暂停 / 继续 |
+| 左 / 右 | 快退 / 快进 10 秒 |
+| 返回 | 退出播放 |
+
+### 刷视频
+
+| 按键 | 作用 |
+|---|---|
+| 上 / 下 | 上一个 / 下一个视频 |
+| OK | 暂停 / 继续 |
+| 返回 | 退出 |
+
+---
+
+## 🔧 兼容性改动（API 22）
+
+原版 `minSdkVersion="23"`，只降这个数字是不够的 —— 代码里还有一批 API 23 才有的方法，在没有版本守卫的情况下调用会立刻抛异常闪退。
+
+| # | 改动 | 不改会怎样 |
 |---|---|---|
-| `NotificationChannel` | `a/a0.smali`、`BackgroundAudioService` | 已有 `SDK_INT >= 26` 守卫 ✅ |
-| `Notification.Builder(ctx, channelId)` | `a/a0.smali` | 已有 `SDK_INT >= 26` 守卫 ✅ |
-| `createDeviceProtectedStorageContext` | `a/U.smali` | 已有 `SDK_INT >= 24` 守卫 ✅ |
-| `java.util.function.*`（2000+ 处） | `j$/` desugar 包 | R8 backport，**主入口类零引用**，不会触发类加载 ✅ |
-| `java.util.stream.*` | 仅 1 个文件 | 同上 ✅ |
-| `AudioAttributes.Builder` | API 21 已有 | ✅ |
-| `MediaSession` | API 21 已有 | ✅ |
-| `resources.arsc` | — | 保持 `STORED` 不压缩 ✅ |
+| 1 | `minSdkVersion` `23` → `21` | 根本装不上 |
+| 2 | `La/a0;` 新增 `D()` / `E()` 权限检查兼容层，3 处 `checkSelfPermission` 改走它 | **一进后台播放 / 下载就崩**（`WakeLockManager` 是必经路径，且无任何版本判断） |
+| 3 | `BackgroundAudioService` 3 处 `getSystemService(Class)` → `(String)` | 后台播放服务启动崩溃 |
+| 4 | `La/po;` 的 `requestPermissions` 加 `SDK_INT >= 23` 短路 | 权限申请调用崩溃 |
+| 5 | 补上 **V2 + V3 签名** | Android 11+ 安装器拒绝安装（报"安装包无效"） |
+| 6 | 版本号 `0.9.40` → `0.9.41` | 与原版区分 |
+
+`a0.D()` 在 API 22 上会降级到 `Context.checkPermission(perm, myPid(), myUid())`，**仍然执行真实的权限检查**，不是硬编码返回"已授权"。
+
+已核查确认**不需要**动的：`NotificationChannel` / `Notification.Builder(ctx, channelId)`（都有 `SDK_INT >= 26` 守卫）、`createDeviceProtectedStorageContext`（有 `>= 24` 守卫）、`java.util.function`（R8 desugar 的 `j$/` 包，主入口类零引用）、`resources.arsc` 保持不压缩。所有原有资源文件一字节没改。
 
 ---
 
-## 📦 下载
+## 🏗 技术实现
 
-| 方式 | 地址 |
-|---|---|
-| **国内直连（推荐）** | https://xbfhm.xyz/downloads/BT_TV_0.9.41_API22.apk |
-| GitHub Release | https://github.com/xbfhm/bt/releases/latest |
+新功能做在**独立的 `classes3.dex`** 里，包名 `com.yzb.btplus`，与原 App 完全隔离：
 
-- 版本：`0.9.41`（原 0.9.40）
-- 大小：3.42 MB
-- SHA-256：`fd788ab174b826400c6d4a3b23286c332b5a06cd42882d8a4c21d19fe1618098`
+```
+com.yzb.btplus
+├── PlusActivity      免费影视库首页（分类 + 网格）
+├── DetailActivity    详情页（线路 + 选集）
+├── SearchActivity    搜索
+├── PlayerActivity    播放器（ExoPlayer + 手势）
+├── FeedActivity      刷视频（上下切换）
+├── Api               非凡资源接口封装
+├── BiliApi           B 站接口封装（推荐流 / playurl）
+└── Ui                纯系统控件 UI 工具类
+```
+
+**为什么不用 App 自带的 okhttp / media3？**
+
+原版经过 R8 混淆，`okhttp3.*`、`androidx.media3.*` 的类名全被改成了 `a.b.c` 这种，无法通过公开 API 调用。所以新代码只用**系统类**：
+
+- 网络：`java.net.HttpURLConnection`
+- 播放：`android.widget.VideoView`（系统播放器，API 1 就有）
+- UI：`LinearLayout` / `TextView` / `ImageView` / `GridView` 等纯系统控件
+
+唯一的外部依赖是**图片加载**，用了自己写的极简 `Ui.java`（`HttpURLConnection` + `BitmapFactory` + 二级内存缓存），避免引入 Glide 带来的类名冲突。
 
 ---
 
-## ⚠️ 安装前必读
-
-**签名变了。** 原版是作者私钥签的，我重打包只能用自签名，所以：
-
-```
-必须先卸载原版 BT，再安装这个版本。
-```
-
-如果直接覆盖安装会报：
-
-```
-App not installed as package conflicts with an existing package.
-```
-
-卸载方法（电视上）：
-
-1. 设置 → 应用管理 → 找到 **BT** → 卸载
-2. 或者用当贝市场 / 电视管家卸载
-
-> 卸载会清掉 App 的本地数据（观看记录、下载列表等），介意的话先截图记一下。
-
----
-
-## 🎮 遥控器按键
-
-| 按键 | 功能 |
-|---|---|
-| `OK` / `Enter` | 选中 / 播放暂停 |
-| `←` `→` | 快退 / 快进 |
-| `↑` `↓` | 上下切换焦点 |
-| `BACK` | 返回上一级 |
-| `MENU` | 部分页面呼出菜单 |
-
----
-
-## 🛠 自己构建
+## 🛠 构建
 
 ```bash
 git clone https://github.com/xbfhm/bt.git
 cd bt
-./tools/build.sh
+bash tools/build_plus.sh
 ```
 
-产物在 `dist/BT_TV_0.9.41_API22.apk`。
+依赖：JDK 8+（`javac` / `javac` 的 `--release 8`）、Python 3、`curl`、`unzip`。
 
-依赖：`java`（11+）、`python3`、`curl`、`unzip`、`jarsigner`（JDK 自带）。
+脚本会自动下载 `smali` / `baksmali` / `d8`（首次运行约 20 MB），然后：
 
-构建流程：
+1. 编译 `plus/src/` 下的 Java 源码
+2. `d8` 转成 `classes3.dex`
+3. 用 `tools/axml.py` 在 `AndroidManifest.xml` 里插入 5 个 Activity
+4. 把 `classes3.dex` + 新 manifest 塞进 `src/base.apk`
+5. 调用 `uber-apk-signer` 做 **zipalign + V1/V2/V3 签名**
 
-```
-src/base.apk
-   ↓ baksmali 反编译
-smali1/ smali2/
-   ↓ patch_api22.py 打补丁
-   ↓ smali 重新汇编
-out1.dex out2.dex
-   ↓ repack.py 重打包（改 versionName）
-bt_tv_unsigned.apk
-   ↓ jarsigner（V1 签名）
-dist/BT_TV_0.9.41_API22.apk
-```
+产物在 `BT_Plus_0.9.41_API22.apk`。
 
-> 为什么用 **V1 签名**？Android 7.0 以下只认 V1（JAR 签名），V2/V3 是 7.0+ 才支持的。
-
----
-
-## 📁 仓库结构
+### 目录结构
 
 ```
 bt/
-├── src/base.apk              # 原版 0.9.40（未修改）
+├── src/base.apk               # 原版 0.9.40，未修改
+├── plus/
+│   ├── src/com/yzb/btplus/    # 新功能 Java 源码（8 个类）
+│   └── tools/axml.py          # AXML 解析 / 重建器
 ├── tools/
-│   ├── build.sh              # 一键构建
-│   ├── patch_axml.py         # AXML minSdkVersion 修改器
-│   ├── patch_api22.py        # API 22 兼容补丁（smali 层）
-│   ├── repack.py             # 重打包
-│   └── verify.py             # 构建后自检（9 项，失败即中断）
-├── keystore/bt-release.jks   # 固定签名（口令 bt2026）
+│   ├── build.sh               # 原版 API 22 适配构建
+│   ├── build_plus.sh          # 增强版构建（含新功能）
+│   ├── patch_axml.py          # minSdk 修改器
+│   ├── patch_api22.py         # smali 层兼容补丁
+│   ├── verify.py              # 构建后自检
+│   └── verify_plus.py         # 增强版 12 项自检
+├── keystore/bt-release.jks    # 固定签名（口令 bt2026）
+├── jars/                      # smali / baksmali 离线缓存
 ├── .github/workflows/build.yml
 ├── CHANGELOG.md
 ├── 合格证.md
@@ -231,8 +181,9 @@ bt/
 
 ## 📄 声明
 
-- 本项目**仅做兼容性适配**，不修改任何业务逻辑、不破解会员、不去广告。
+- 本项目**仅做兼容性适配 + 新增独立功能**，不修改原 App 的任何业务逻辑、不破解会员、不去广告。
 - `src/base.apk` 版权归原作者 **重庆魂搜网络科技（chinasoul）** 所有。
+- 新增功能使用的是公开的免费资源接口与 B 站公开 API，仅供个人学习使用。
 - 请勿用于商业分发。
 
 ---
