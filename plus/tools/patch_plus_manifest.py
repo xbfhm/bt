@@ -7,9 +7,9 @@ import axml
 
 ACTS = [
     {'name': 'com.yzb.btplus.PlusActivity', 'label': '\u514d\u8d39\u5f71\u89c6\u5e93',
-     'launcher': True, 'orientation': 'landscape'},
+     'launcher': False, 'orientation': 'landscape'},
     {'name': 'com.yzb.btplus.FeedActivity', 'label': '\u5237\u89c6\u9891',
-     'launcher': True, 'orientation': 'landscape'},
+     'launcher': False, 'orientation': 'landscape'},
     {'name': 'com.yzb.btplus.DetailActivity', 'launcher': False, 'orientation': 'landscape'},
     {'name': 'com.yzb.btplus.SearchActivity', 'launcher': False, 'orientation': 'landscape'},
     {'name': 'com.yzb.btplus.PlayerActivity', 'launcher': False, 'orientation': 'landscape'},

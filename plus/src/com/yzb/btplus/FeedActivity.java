@@ -157,19 +157,12 @@ public class FeedActivity extends Activity {
         });
         btnBar.addView(likeBtn);
 
-        View openBtn = makeSmallBtn("在 B 站打开");
+        // 进原版播放器：评论 / 投币 / UP主 / 弹幕 / 倍速 全都在
+        View openBtn = makeSmallBtn("原版播放页 ▸");
         openBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                BiliApi.Video v0 = cur();
-                if (v0 == null) return;
-                try {
-                    Intent i = new Intent(Intent.ACTION_VIEW,
-                            Uri.parse("https://www.bilibili.com/video/" + v0.bvid));
-                    startActivity(i);
-                } catch (Throwable t) {
-                    Ui.toast(FeedActivity.this, "没有可用的浏览器");
-                }
+                openNative();
             }
         });
         LinearLayout.LayoutParams oblp = Ui.lpL(-2, Ui.dp(38));
@@ -433,11 +426,37 @@ public class FeedActivity extends Activity {
                 } catch (Throwable ignored) {
                 }
                 return true;
+            case KeyEvent.KEYCODE_MENU:
+            case KeyEvent.KEYCODE_INFO:
+                openNative();
+                return true;
             case KeyEvent.KEYCODE_BACK:
                 finish();
                 return true;
             default:
                 return super.onKeyDown(code, e);
+        }
+    }
+
+    /** 用原版播放器打开当前视频（评论/投币/UP主/弹幕全部具备） */
+    private void openNative() {
+        final BiliApi.Video v0 = cur();
+        if (v0 == null) {
+            Ui.toast(this, "还没有视频");
+            return;
+        }
+        try {
+            Intent i = new Intent();
+            i.setClassName(this, "com.chinasoul.bt.NativePlayerActivity");
+            i.putExtra("bvid", v0.bvid);
+            try {
+                i.putExtra("cid", Long.parseLong(v0.cid));
+            } catch (Throwable ignored) {
+            }
+            i.putExtra("title", v0.title);
+            startActivity(i);
+        } catch (Throwable t) {
+            Ui.toast(this, "打开原版播放页失败：" + t.getClass().getSimpleName());
         }
     }
 

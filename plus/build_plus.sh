@@ -58,6 +58,9 @@ echo "==> 4/8 应用 API 22 兼容补丁"
 python3 tools/patch_axml.py "$WORK/x/AndroidManifest.xml" 21
 python3 tools/patch_api22.py "$WORK/x"
 
+echo "==> 4.5/8 注入侧边栏菜单项（看番 / 刷视频）"
+python3 "$HERE/tools/patch_sidebar.py" "$WORK/x"
+
 echo "==> 5/8 重新编译 dex"
 java -Xmx3g -cp "$CP" org.jf.smali.Main assemble "$WORK/x/smali1" -o "$WORK/out1.dex"
 if [ -d "$WORK/x/smali2" ]; then
