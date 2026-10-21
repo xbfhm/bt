@@ -219,14 +219,20 @@ public class FeedActivity extends Activity {
                 next();
             }
         });
-        video.setOnInfoListener(new MediaPlayer.OnInfoListener() {
-            @Override
-            public boolean onInfo(MediaPlayer mp, int what, int extra) {
-                if (what == MediaPlayer.MEDIA_INFO_BUFFERING_START) loading.setVisibility(View.VISIBLE);
-                if (what == MediaPlayer.MEDIA_INFO_BUFFERING_END) loading.setVisibility(View.GONE);
-                return false;
+        // VideoView.setOnInfoListener 是 API 26 才有的；老电视(API22)直接调用会 NoSuchMethodError 闪退
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            try {
+                video.setOnInfoListener(new MediaPlayer.OnInfoListener() {
+                    @Override
+                    public boolean onInfo(MediaPlayer mp, int what, int extra) {
+                        if (what == MediaPlayer.MEDIA_INFO_BUFFERING_START) loading.setVisibility(View.VISIBLE);
+                        if (what == MediaPlayer.MEDIA_INFO_BUFFERING_END) loading.setVisibility(View.GONE);
+                        return false;
+                    }
+                });
+            } catch (Throwable ignored) {
             }
-        });
+        }
     }
 
     private android.graphics.drawable.Drawable bottomGradient() {
