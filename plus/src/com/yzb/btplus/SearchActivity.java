@@ -43,6 +43,7 @@ public class SearchActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Ui.init(this);
+        Log.init(this);
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Ui.BG));
         build();
     }

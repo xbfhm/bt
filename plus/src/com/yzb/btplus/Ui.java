@@ -143,6 +143,24 @@ public class Ui {
         android.widget.Toast.makeText(c, msg, android.widget.Toast.LENGTH_SHORT).show();
     }
 
+    /** 崩溃兜底页：把异常直接显示在屏幕上（电视看不到 logcat） */
+    public static void showFatal(final android.app.Activity a, final Throwable t) {
+        try {
+            Log.e("Fatal", "activity crashed", t);
+            android.widget.ScrollView sv = new android.widget.ScrollView(a);
+            sv.setBackgroundColor(Color.parseColor("#0E1015"));
+            TextView tv = new TextView(a);
+            tv.setTextSize(11);
+            tv.setTextColor(Color.parseColor("#FF8A8A"));
+            tv.setTypeface(android.graphics.Typeface.MONOSPACE);
+            tv.setText("页面出错（可截图发给作者）\n\n" + Log.stack(t));
+            tv.setPadding(dp(24), dp(24), dp(24), dp(24));
+            sv.addView(tv);
+            a.setContentView(sv);
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static LinearLayout vbox(Context c) {
         LinearLayout l = new LinearLayout(c);
         l.setOrientation(LinearLayout.VERTICAL);

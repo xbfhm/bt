@@ -52,6 +52,8 @@ public class FeedActivity extends Activity {
     private TextView tvLike;
     private LinearLayout btnBar;
 
+    private TextView tvStatus;
+
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean paused = false;
     private boolean liked = false;
@@ -60,10 +62,17 @@ public class FeedActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Ui.init(this);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
-        build();
-        loadMore();
+        Log.init(this);
+        Log.installCrashHandler(getApplicationContext());
+        Log.i("Feed", "onCreate");
+        try {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+            build();
+            loadMore();
+        } catch (Throwable t) {
+            Ui.showFatal(this, t);
+        }
     }
 
     private void build() {
@@ -87,6 +96,12 @@ public class FeedActivity extends Activity {
         FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(Ui.dp(54), Ui.dp(54));
         plp.gravity = Gravity.CENTER;
         root.addView(loading, plp);
+
+        tvStatus = Ui.text(this, "正在加载推荐…", 15, Color.parseColor("#C9CEDB"));
+        tvStatus.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(-1, -2);
+        slp.gravity = Gravity.CENTER;
+        root.addView(tvStatus, slp);
 
         // 顶部栏
         LinearLayout top = Ui.hbox(this);
@@ -299,10 +314,14 @@ public class FeedActivity extends Activity {
                         if (add.isEmpty()) {
                             exhausted = true;
                             if (queue.isEmpty()) {
+                                Log.e("Feed", "feed empty (all endpoints failed)", null);
+                                loading.setVisibility(View.GONE);
+                                tvStatus.setText("推荐流加载失败\n请检查电视网络，按【菜单】键重试");
                                 Ui.toast(FeedActivity.this, "推荐流加载失败，请检查网络");
                             }
                             return;
                         }
+                        tvStatus.setVisibility(View.GONE);
                         queue.addAll(add);
                         if (idx < 0) {
                             idx = 0;
@@ -351,6 +370,7 @@ public class FeedActivity extends Activity {
         cover.setImageDrawable(null);
         Ui.loadImage(cover, v.pic);
         loading.setVisibility(View.VISIBLE);
+        tvStatus.setVisibility(View.GONE);
         video.setVisibility(View.VISIBLE);
 
         // 进场动画
@@ -433,6 +453,17 @@ public class FeedActivity extends Activity {
                 }
                 return true;
             case KeyEvent.KEYCODE_MENU:
+                if (queue.isEmpty()) {
+                    exhausted = false;
+                    busy = false;
+                    tvStatus.setText("正在重新加载…");
+                    tvStatus.setVisibility(View.VISIBLE);
+                    loading.setVisibility(View.VISIBLE);
+                    loadMore();
+                } else {
+                    openNative();
+                }
+                return true;
             case KeyEvent.KEYCODE_INFO:
                 openNative();
                 return true;

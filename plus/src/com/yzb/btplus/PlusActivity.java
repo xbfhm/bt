@@ -38,14 +38,22 @@ public class PlusActivity extends Activity {
     private boolean loading2 = false;
     private final List<TextView> tabViews = new ArrayList<TextView>();
     private View searchBtn;
+    private TextView pageInfo;
 
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Ui.init(this);
-        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Ui.BG));
-        buildUi();
-        loadCat(0, 1);
+        Log.init(this);
+        Log.installCrashHandler(getApplicationContext());
+        Log.i("Plus", "onCreate");
+        try {
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Ui.BG));
+            buildUi();
+            loadCat(0, 1);
+        } catch (Throwable t) {
+            Ui.showFatal(this, t);
+        }
     }
 
     private void buildUi() {
@@ -69,6 +77,17 @@ public class PlusActivity extends Activity {
 
         View spacer = new View(this);
         top.addView(spacer, Ui.lpL(0, 1, 1f));
+
+        View feedBtn = makeBtn("刷视频");
+        feedBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(PlusActivity.this, FeedActivity.class));
+            }
+        });
+        LinearLayout.LayoutParams flp = Ui.lpL(Ui.dp(96), Ui.dp(40));
+        flp.rightMargin = Ui.dp(10);
+        top.addView(feedBtn, flp);
 
         searchBtn = makeBtn("搜索");
         searchBtn.setOnClickListener(new View.OnClickListener() {
@@ -100,6 +119,10 @@ public class PlusActivity extends Activity {
         tabsScroll.addView(tabsBox, new FrameLayout.LayoutParams(-2, -1));
         page.addView(tabsScroll, Ui.lpL(-1, Ui.dp(60)));
 
+        pageInfo = Ui.text(this, "", 12, Ui.TXT2);
+        pageInfo.setPadding(Ui.dp(28), 0, Ui.dp(28), Ui.dp(2));
+        page.addView(pageInfo, Ui.lpL(-1, -2));
+
         for (int i = 0; i < Api.CATS.length; i++) {
             TextView t = Ui.text(this, Api.CATS[i][0], 15, Ui.TXT2);
             t.setGravity(Gravity.CENTER);
@@ -114,6 +137,23 @@ public class PlusActivity extends Activity {
                 @Override
                 public void onClick(View v) {
                     if (idx != curCat) loadCat(idx, 1);
+                }
+            });
+            t.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int code, KeyEvent e) {
+                    if (e.getAction() != KeyEvent.ACTION_DOWN) return false;
+                    if (code == KeyEvent.KEYCODE_DPAD_RIGHT && idx + 1 < Api.CATS.length) {
+                        loadCat(idx + 1, 1);
+                        tabViews.get(idx + 1).requestFocus();
+                        return true;
+                    }
+                    if (code == KeyEvent.KEYCODE_DPAD_LEFT && idx > 0) {
+                        loadCat(idx - 1, 1);
+                        tabViews.get(idx - 1).requestFocus();
+                        return true;
+                    }
+                    return false;
                 }
             });
             tabsBox.addView(t, tlp);
@@ -202,15 +242,22 @@ public class PlusActivity extends Activity {
                         loading2 = false;
                         loading.setVisibility(View.GONE);
                         if (fpg == null) {
-                            showEmpty("加载失败：" + ferr + "\n按返回键退出，或点「搜索」换个入口");
+                            Log.e("Plus","list failed " + typeId + " p" + curPage, null);
+                            showEmpty("加载失败：" + ferr + "\n\n按【菜单】键重试，或按返回退出");
                             return;
                         }
                         pageCount = fpg.pageCount;
+                        showPageInfo();
                         render(fpg.items, curPage < pageCount);
                     }
                 });
             }
         });
+    }
+
+    private void showPageInfo() {
+        if (pageInfo == null) return;
+        pageInfo.setText("第 " + curPage + " / " + pageCount + " 页");
     }
 
     private void showEmpty(String s) {
@@ -333,7 +380,12 @@ public class PlusActivity extends Activity {
             finish();
             return true;
         }
-        if (code == KeyEvent.KEYCODE_MENU || code == KeyEvent.KEYCODE_SEARCH) {
+        if (code == KeyEvent.KEYCODE_MENU) {
+            // 有内容时菜单键=刷新当前分类；空/失败时=重试
+            loadCat(curCat, curPage);
+            return true;
+        }
+        if (code == KeyEvent.KEYCODE_SEARCH) {
             startActivity(new Intent(this, SearchActivity.class));
             return true;
         }

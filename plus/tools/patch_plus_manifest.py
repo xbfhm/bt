@@ -13,6 +13,7 @@ ACTS = [
     {'name': 'com.yzb.btplus.DetailActivity', 'launcher': False, 'orientation': 'landscape'},
     {'name': 'com.yzb.btplus.SearchActivity', 'launcher': False, 'orientation': 'landscape'},
     {'name': 'com.yzb.btplus.PlayerActivity', 'launcher': False, 'orientation': 'landscape'},
+    {'name': 'com.yzb.btplus.LogActivity', 'label': '\u65e5\u5fd7', 'launcher': False, 'orientation': 'landscape'},
 ]
 
 if __name__ == '__main__':

@@ -50,6 +50,7 @@ public class PlayerActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Ui.init(this);
+        Log.init(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.BLACK));
 

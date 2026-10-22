@@ -30,13 +30,18 @@ public class DetailActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Ui.init(this);
-        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Ui.BG));
-        item = (Api.Item) getIntent().getSerializableExtra("item");
-        if (item == null) {
-            finish();
-            return;
+        Log.init(this);
+        try {
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Ui.BG));
+            item = (Api.Item) getIntent().getSerializableExtra("item");
+            if (item == null) {
+                finish();
+                return;
+            }
+            build();
+        } catch (Throwable t) {
+            Ui.showFatal(this, t);
         }
-        build();
     }
 
     private void build() {
